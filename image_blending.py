@@ -113,5 +113,89 @@ def collapse(lapl_pyr):
         output = tmp
     return output
 
+
+def main():
+    image1 = cv2.imread('apple.jpg')
+    image2 = cv2.imread('orange.jpg')
+    mask = cv2.imread('mask512.jpg')
+    r1 = None
+    g1 = None
+    b1 = None
+    r2 = None
+    g2 = None
+    b2 = None
+    rm = None
+    gm = None
+    bm = None
+
+    (r1, g1, b1) = split_rgb(image1)
+    (r2, g2, b2) = split_rgb(image2)
+    (rm, gm, bm) = split_rgb(mask)
+
+    r1 = r1.astype(float)
+    g1 = g1.astype(float)
+    b1 = b1.astype(float)
+
+    r2 = r2.astype(float)
+    g2 = g2.astype(float)
+    b2 = b2.astype(float)
+
+    rm = rm.astype(float) / 255
+    gm = gm.astype(float) / 255
+    bm = bm.astype(float) / 255
+
+    # Automatically figure out the size
+    min_size = min(r1.shape)
+    depth = int(math.floor(math.log(min_size, 2))) - 4  # at least 16x16 at the highest level.
+
+    gauss_pyr_maskr = gauss_pyramid(rm, depth)
+    gauss_pyr_maskg = gauss_pyramid(gm, depth)
+    gauss_pyr_maskb = gauss_pyramid(bm, depth)
+
+    gauss_pyr_image1r = gauss_pyramid(r1, depth)
+    gauss_pyr_image1g = gauss_pyramid(g1, depth)
+    gauss_pyr_image1b = gauss_pyramid(b1, depth)
+
+    gauss_pyr_image2r = gauss_pyramid(r2, depth)
+    gauss_pyr_image2g = gauss_pyramid(g2, depth)
+    gauss_pyr_image2b = gauss_pyramid(b2, depth)
+
+    lapl_pyr_image1r = lapl_pyramid(gauss_pyr_image1r)
+    lapl_pyr_image1g = lapl_pyramid(gauss_pyr_image1g)
+    lapl_pyr_image1b = lapl_pyramid(gauss_pyr_image1b)
+
+    lapl_pyr_image2r = lapl_pyramid(gauss_pyr_image2r)
+    lapl_pyr_image2g = lapl_pyramid(gauss_pyr_image2g)
+    lapl_pyr_image2b = lapl_pyramid(gauss_pyr_image2b)
+
+    outpyrr = blend(lapl_pyr_image2r, lapl_pyr_image1r, gauss_pyr_maskr)
+    outpyrg = blend(lapl_pyr_image2g, lapl_pyr_image1g, gauss_pyr_maskg)
+    outpyrb = blend(lapl_pyr_image2b, lapl_pyr_image1b, gauss_pyr_maskb)
+
+    outimgr = collapse(blend(lapl_pyr_image2r, lapl_pyr_image1r, gauss_pyr_maskr))
+    outimgg = collapse(blend(lapl_pyr_image2g, lapl_pyr_image1g, gauss_pyr_maskg))
+    outimgb = collapse(blend(lapl_pyr_image2b, lapl_pyr_image1b, gauss_pyr_maskb))
+    # blending sometimes results in slightly out of bound numbers.
+    outimgr[outimgr < 0] = 0
+    outimgr[outimgr > 255] = 255
+    outimgr = outimgr.astype(np.uint8)
+
+    outimgg[outimgg < 0] = 0
+    outimgg[outimgg > 255] = 255
+    outimgg = outimgg.astype(np.uint8)
+
+    outimgb[outimgb < 0] = 0
+    outimgb[outimgb > 255] = 255
+    outimgb = outimgb.astype(np.uint8)
+
+    result = np.zeros(image1.shape, dtype=image1.dtype)
+    tmp = []
+    tmp.append(outimgb)
+    tmp.append(outimgg)
+    tmp.append(outimgr)
+    result = cv2.merge(tmp, result)
+    cv2.imwrite('blended.jpg', result)
+
+
 if __name__ == '__main__':
     main()
