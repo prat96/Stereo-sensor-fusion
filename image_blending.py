@@ -80,6 +80,38 @@ def lapl_pyramid(gauss_pyr):
     return output
 
 
+'''Blend the two laplacian pyramids by weighting them according to the mask.'''
+
+
+def blend(lapl_pyr_white, lapl_pyr_black, gauss_pyr_mask):
+    blended_pyr = []
+    k = len(gauss_pyr_mask)
+    for i in range(0, k):
+        p1 = gauss_pyr_mask[i] * lapl_pyr_white[i]
+        p2 = (1 - gauss_pyr_mask[i]) * lapl_pyr_black[i]
+        blended_pyr.append(p1 + p2)
+    return blended_pyr
+
+
+'''Reconstruct the image based on its laplacian pyramid.'''
+
+
+def collapse(lapl_pyr):
+    output = None
+    output = np.zeros((lapl_pyr[0].shape[0], lapl_pyr[0].shape[1]), dtype=np.float64)
+    for i in range(len(lapl_pyr) - 1, 0, -1):
+        lap = iexpand(lapl_pyr[i])
+        lapb = lapl_pyr[i - 1]
+        if lap.shape[0] > lapb.shape[0]:
+            lap = np.delete(lap, (-1), axis=0)
+        if lap.shape[1] > lapb.shape[1]:
+            lap = np.delete(lap, (-1), axis=1)
+        tmp = lap + lapb
+        lapl_pyr.pop()
+        lapl_pyr.pop()
+        lapl_pyr.append(tmp)
+        output = tmp
+    return output
 
 if __name__ == '__main__':
     main()
